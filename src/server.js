@@ -1,6 +1,7 @@
-// server.js (CommonJS)
+// server.js — CommonJS + gated capture
 
-require('dotenv').config(); // load .env FIRST
+// 0) ENV + deps (keep dotenv first)
+require('dotenv').config(); // if your .env is one folder up, use: config({ path: '../.env' })
 const express = require('express');
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
@@ -8,69 +9,106 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(express.static('public'));
+app.use(express.json()); // Parse JSON request bodies
 const PORT = 3000;
 
-// --- Supabase (server key only on backend) ---
+// 1) Supabase (server key ONLY on backend)
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// --- Arduino serial setup ---
-const port = new SerialPort({ path: 'COM3', baudRate: 9600 }); // adjust for your OS
+// 2) Serial port + parser (declare before any use of `parser`)
+const SERIAL_PATH = 'COM3'; // change for mac/linux (e.g. '/dev/tty.usbmodemXXXX')
+const port = new SerialPort({ path: SERIAL_PATH, baudRate: 9600 });
 const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
-let latest = null;
+port.on('open', () => console.log('Serial port opened:', SERIAL_PATH));
+port.on('error', (e) => console.error('Serial error:', e.message));
 
-// Fire-and-forget insert (don’t block serial parser loop)
-async function saveReadingToDB(reading) {
-  try {
-    const { error } = await supabase.from('readings').insert({
-      analog: reading.analog ?? null,
-      digital: reading.digital ?? null,
-      raw: reading.raw ?? null
-    });
-    if (error) console.error('Supabase insert error:', error.message);
-  } catch (e) {
-    console.error('Supabase insert exception:', e);
-  }
-}
+let latest = null;          // last parsed reading cached in memory
+let captureInFlight = false; // prevents double-captures
 
-parser.on('data', (line) => {
+// 3) Helpers
+function parseReadingFromLine(line) {
   const s = String(line).trim();
-
-  // 1) Try JSON
+  // JSON first
   try {
     const obj = JSON.parse(s);
-    latest = { ...obj, t: Date.now(), raw: s };
-    void saveReadingToDB(latest);
-    return;
+    return { ...obj, t: Date.now(), raw: s };
   } catch (_) {}
-
-  // 2) CSV "analog, digital" (e.g., 512, 1)
+  // CSV "analog, digital"
   const m = s.match(/^\s*(\d+)\s*,\s*(\d+)\s*$/);
   if (m) {
-    latest = {
+    return {
       analog: Number(m[1]),
       digital: Number(m[2]),
       t: Date.now(),
       raw: s
     };
-    void saveReadingToDB(latest);
-    return;
   }
+  return null;
+}
 
-  // 3) Not JSON or CSV — ignore (or log)
-  // console.log('Unrecognized line:', s);
+async function saveReadingToDB(reading, userInfo = null) {
+  const insertData = {
+    analog: reading.analog ?? null,
+    digital: reading.digital ?? null,
+    raw: reading.raw ?? null
+  };
+  
+  // Add user information if provided
+  if (userInfo) {
+    insertData.name = userInfo.name;
+    insertData.date_of_birth = userInfo.dateOfBirth;
+    insertData.insurance = userInfo.insurance;
+  }
+  
+  const { data, error } = await supabase
+    .from('readings') // table must exist with columns: analog int, digital int, raw text, name text, date_of_birth date, insurance text, created_at timestamptz
+    .insert(insertData)
+    .select();
+  if (error) throw error;
+  return data?.[0];
+}
+
+// Wait for exactly ONE next valid reading (optional timeout)
+function getNextReading(timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const onData = (line) => {
+      const r = parseReadingFromLine(line);
+      if (r) {
+        parser.off('data', onData);
+        clearTimeout(timer);
+        resolve(r);
+      }
+    };
+    const timer = setTimeout(() => {
+      parser.off('data', onData);
+      reject(new Error('Timed out waiting for a reading'));
+    }, timeoutMs);
+    parser.on('data', onData);
+  });
+}
+
+// 4) Serial listener — cache ONLY (don’t auto-insert)
+parser.on('data', (line) => {
+  const r = parseReadingFromLine(line);
+  if (r) {
+    latest = r;
+    // console.log('serial:', r); // uncomment for debugging
+  }
 });
 
-// API to fetch most recent reading (from memory)
+// 5) Routes
+
+// Live preview (from memory)
 app.get('/api/sensor', (_req, res) => {
   if (!latest) return res.status(204).end();
   res.json(latest);
 });
 
-// Optional: fetch most recent from DB instead of memory
+// Latest from DB
 app.get('/api/sensor/db-latest', async (_req, res) => {
   const { data, error } = await supabase
     .from('readings')
@@ -82,28 +120,52 @@ app.get('/api/sensor/db-latest', async (_req, res) => {
   res.json(data[0]);
 });
 
-// Quick debug
-app.get('/api/debug', (_req, res) => res.json({ latest }));
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\nClosing serial port…');
-  port.close(() => process.exit(0));
+// Gated: user clicks Submit → capture ONE new reading, then insert
+app.post('/api/capture-and-save', async (req, res) => {
+  if (captureInFlight) return res.status(409).json({ error: 'Capture already in progress' });
+  captureInFlight = true;
+  try {
+    const reading = await getNextReading(5000);
+    const userInfo = req.body.name ? req.body : null; // Include user info if provided
+    const saved = await saveReadingToDB(reading, userInfo);
+    res.json({ saved });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    captureInFlight = false;
+  }
 });
-// Quick manual test: insert a dummy row into Supabase
+
+// Gated: save whatever is currently cached in `latest`
+app.post('/api/save-latest', async (req, res) => {
+  if (!latest) return res.status(409).json({ error: 'No reading available yet' });
+  try {
+    const userInfo = req.body.name ? req.body : null; // Include user info if provided
+    const saved = await saveReadingToDB(latest, userInfo);
+    res.json({ saved });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Manual test insert (handy while wiring things up)
 app.post('/api/test-insert', async (_req, res) => {
   const { data, error } = await supabase
-    .from('readings')        // must match your Supabase table name
-    .insert({
-      analog: 123,           // sample analog value
-      digital: 1,            // sample digital value
-      raw: 'manual test'     // optional debug text
-    })
-    .select();               // returns inserted row(s)
-
+    .from('readings')
+    .insert({ analog: 123, digital: 1, raw: 'manual test' })
+    .select();
   if (error) return res.status(500).json({ error: error.message });
   res.json({ inserted: data });
 });
 
+
+// Debug
+app.get('/api/debug', (_req, res) => res.json({ latest }));
+
+// 6) Start + graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\nClosing serial port…');
+  port.close(() => process.exit(0));
+});
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

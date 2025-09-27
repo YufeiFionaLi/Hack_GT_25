@@ -8,10 +8,15 @@
     .card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; width: 360px; }
     .value { font-size: 2rem; }
     h1 { margin-bottom: 1rem; }
+    .row { margin-top: 1rem; }
+    pre { background: #f6f8fa; padding: .75rem; border-radius: 8px; }
+    button { padding: .5rem .9rem; font-size: 1rem; }
   </style>
 </head>
 <body>
   <h1>Arduino → Node → Web (MQ-3 Alcohol Sensor)</h1>
+
+  <!-- Live preview card (unchanged) -->
   <div class="card">
     <div>Analog reading: <span id="analog" class="value">—</span></div>
     <div>Digital output: <span id="digital" class="value">—</span></div>
@@ -19,7 +24,41 @@
     <div>Status: <span id="status">waiting…</span></div>
   </div>
 
+  <!-- User Information Form -->
+  <div class="card" style="margin-top: 2rem;">
+    <h2>User Information</h2>
+    <form id="user-form">
+      <div style="margin-bottom: 1rem;">
+        <label for="name" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Full Name:</label>
+        <input type="text" id="name" name="name" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+      </div>
+      <div style="margin-bottom: 1rem;">
+        <label for="dateOfBirth" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Date of Birth:</label>
+        <input type="date" id="dateOfBirth" name="dateOfBirth" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+      </div>
+      <div style="margin-bottom: 1rem;">
+        <label for="insurance" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Insurance Provider:</label>
+        <input type="text" id="insurance" name="insurance" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+      </div>
+    </form>
+    <div id="user-response" style="margin-top: 1rem; padding: 0.75rem; background: #f6f8fa; border-radius: 8px; display: none;"></div>
+  </div>
+
+  <!-- NEW: capture/save controls -->
+  <div class="row">
+    <button id="submit">Submit (capture & save one)</button>
+    <button id="save-latest" style="margin-left:.5rem">Save latest</button>
+    <button id="db-latest" style="margin-left:.5rem">Show latest from DB</button>
+  </div>
+
+  <!-- NEW: server responses / errors -->
+  <div class="row">
+    <h3>Server response</h3>
+    <pre id="out">—</pre>
+  </div>
+
   <script>
+    // --- existing live polling ---
     const analogEl  = document.getElementById('analog');
     const digitalEl = document.getElementById('digital');
     const tEl       = document.getElementById('t');
@@ -33,7 +72,6 @@
           return;
         }
         const data = await res.json();
-        // server.js sets latest = { analog: Number, digital: Number, t: Date.now() }
         analogEl.textContent  = data.analog  ?? '—';
         digitalEl.textContent = data.digital ?? '—';
         tEl.textContent       = data.t       ?? '—';
@@ -42,10 +80,117 @@
         statusEl.textContent = 'error fetching';
       }
     }
-
-    // poll 5 times per second
     setInterval(tick, 200);
     tick();
+
+    // --- NEW: gated save controls ---
+    const outEl = document.getElementById('out');
+    const submitBtn = document.getElementById('submit');
+    const saveLatestBtn = document.getElementById('save-latest');
+    const dbLatestBtn = document.getElementById('db-latest');
+    
+    // --- User form handling ---
+    const userForm = document.getElementById('user-form');
+    const userResponseEl = document.getElementById('user-response');
+
+    async function postJSON(path, data = null) {
+      const options = { method: 'POST' };
+      if (data) {
+        options.headers = { 'Content-Type': 'application/json' };
+        options.body = JSON.stringify(data);
+      }
+      const r = await fetch(path, options);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || r.statusText);
+      return j;
+    }
+
+    submitBtn.addEventListener('click', async () => {
+      submitBtn.disabled = true;
+      outEl.textContent = 'Capturing the next reading and saving…';
+      try {
+        // Get user info from form
+        const formData = new FormData(userForm);
+        const userData = {
+          name: formData.get('name'),
+          dateOfBirth: formData.get('dateOfBirth'),
+          insurance: formData.get('insurance')
+        };
+        
+        // Validate user info
+        if (!userData.name || !userData.dateOfBirth || !userData.insurance) {
+          throw new Error('Please fill in all user information fields before capturing sensor data');
+        }
+        
+        const res = await postJSON('/api/capture-and-save', userData); // waits for ONE new reading with user info
+        outEl.textContent = JSON.stringify(res, null, 2);
+        userResponseEl.style.display = 'block';
+        userResponseEl.textContent = 'Success! Sensor reading saved with user information.';
+        userResponseEl.style.background = '#d4edda';
+        userResponseEl.style.color = '#155724';
+      } catch (e) {
+        outEl.textContent = 'Error: ' + e.message;
+        userResponseEl.style.display = 'block';
+        userResponseEl.textContent = 'Error: ' + e.message;
+        userResponseEl.style.background = '#f8d7da';
+        userResponseEl.style.color = '#721c24';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    saveLatestBtn.addEventListener('click', async () => {
+      saveLatestBtn.disabled = true;
+      outEl.textContent = 'Saving the currently cached reading…';
+      try {
+        // Get user info from form
+        const formData = new FormData(userForm);
+        const userData = {
+          name: formData.get('name'),
+          dateOfBirth: formData.get('dateOfBirth'),
+          insurance: formData.get('insurance')
+        };
+        
+        // Validate user info
+        if (!userData.name || !userData.dateOfBirth || !userData.insurance) {
+          throw new Error('Please fill in all user information fields before saving sensor data');
+        }
+        
+        const res = await postJSON('/api/save-latest', userData); // saves whatever the server cached in `latest` with user info
+        outEl.textContent = JSON.stringify(res, null, 2);
+        userResponseEl.style.display = 'block';
+        userResponseEl.textContent = 'Success! Cached sensor reading saved with user information.';
+        userResponseEl.style.background = '#d4edda';
+        userResponseEl.style.color = '#155724';
+      } catch (e) {
+        outEl.textContent = 'Error: ' + e.message;
+        userResponseEl.style.display = 'block';
+        userResponseEl.textContent = 'Error: ' + e.message;
+        userResponseEl.style.background = '#f8d7da';
+        userResponseEl.style.color = '#721c24';
+      } finally {
+        saveLatestBtn.disabled = false;
+      }
+    });
+
+    dbLatestBtn.addEventListener('click', async () => {
+      dbLatestBtn.disabled = true;
+      outEl.textContent = 'Fetching latest from database…';
+      try {
+        const r = await fetch('/api/sensor/db-latest');
+        if (r.status === 204) {
+          outEl.textContent = 'No rows in DB yet.';
+        } else {
+          const j = await r.json();
+          outEl.textContent = JSON.stringify(j, null, 2);
+        }
+      } catch (e) {
+        outEl.textContent = 'Error: ' + e.message;
+      } finally {
+        dbLatestBtn.disabled = false;
+      }
+    });
+
   </script>
 </body>
 </html>
