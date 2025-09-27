@@ -120,6 +120,23 @@ app.get('/api/sensor/db-latest', async (_req, res) => {
   res.json(data[0]);
 });
 
+// Get all readings with user data for doctor view
+app.get('/api/readings/all', async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+    const { data, error } = await supabase
+      .from('readings')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    
+    if (error) throw error;
+    res.json({ readings: data || [], count: data?.length || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Gated: user clicks Submit → capture ONE new reading, then insert
 app.post('/api/capture-and-save', async (req, res) => {
   if (captureInFlight) return res.status(409).json({ error: 'Capture already in progress' });
