@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/Card';
@@ -9,17 +9,17 @@ import { StickyFooter } from '@/components/StickyFooter';
 import { ArrowLeft, Download, CheckCircle } from 'lucide-react';
 import { downloadJson, generateFilename } from '@/lib/download';
 import { getNextShortId } from '@/lib/shortId';
-import { VisitData, PatientData, InsuranceData, AdditionalInfoData, VitalsData } from '@/lib/validation';
 
 export default function ReviewPage() {
   const router = useRouter();
-  const {
-    patient,
-    insurance,
-    additional,
-    vitals,
-    getVitalsData,
-  } = useAppStore();
+  const { visitData } = useAppStore();
+
+  // Redirect if no visit data
+  useEffect(() => {
+    if (!visitData) {
+      router.push('/capture');
+    }
+  }, [visitData, router]);
 
   const handleBack = () => {
     router.push('/capture');
@@ -37,22 +37,23 @@ export default function ReviewPage() {
   };
 
   const handleDownload = () => {
+    if (!visitData) return;
+    
     try {
       const shortId = getNextShortId();
-      const vitalsData = getVitalsData();
       
-      const visitData: VisitData = {
+      const visitPayload = {
         shortId,
-        patient: patient as PatientData,
-        insurance: insurance as InsuranceData,
-        additional: additional as AdditionalInfoData,
-        vitals: vitalsData as VitalsData,
+        patient: visitData.patient,
+        insurance: visitData.insurance,
+        additional: visitData.additional,
+        vitals: visitData.vitals,
         capturedAt: new Date().toISOString(),
       };
 
       // Download JSON file
       const filename = generateFilename(`vitals-${shortId}`);
-      downloadJson(filename, visitData);
+      downloadJson(filename, visitPayload);
     } catch (error) {
       console.error('Failed to download visit data:', error);
     }
@@ -70,14 +71,25 @@ export default function ReviewPage() {
     }
   };
 
-  const formatVitalValue = (value: number | null, unit: string) => {
-    if (value === null) return '--';
+  const formatVitalValue = (value: number | null | undefined, unit: string) => {
+    if (value === null || value === undefined) return '—';
     return `${value.toFixed(value % 1 === 0 ? 0 : 1)} ${unit}`;
   };
 
+  if (!visitData) {
+    return (
+      <div className="min-h-screen bg-[var(--surface-1)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-primary)] mx-auto mb-4"></div>
+          <p className="text-[var(--text-muted)]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--surface-1)]">
-      <div className="max-w-4xl mx-auto p-4">
+      <div className="max-w-4xl mx-auto p-4 pb-32">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" onClick={handleBack} className="flex items-center">
@@ -100,16 +112,16 @@ export default function ReviewPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">First Name</label>
-                <p className="text-[var(--text-strong)]">{patient.firstName || '--'}</p>
+                <p className="text-[var(--text-strong)]">{visitData.patient.firstName || '—'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Last Name</label>
-                <p className="text-[var(--text-strong)]">{patient.lastName || '--'}</p>
+                <p className="text-[var(--text-strong)]">{visitData.patient.lastName || '—'}</p>
               </div>
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-[var(--text-muted)]">Date of Birth</label>
                 <p className="text-[var(--text-strong)]">
-                  {patient.dob ? formatDate(patient.dob) : '--'}
+                  {visitData.patient.dob ? formatDate(visitData.patient.dob) : '—'}
                 </p>
               </div>
             </div>
@@ -122,15 +134,39 @@ export default function ReviewPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)]">Provider</label>
-                <p className="text-[var(--text-strong)]">{insurance.provider || '--'}</p>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Insurance Provider</label>
+                <p className="text-[var(--text-strong)]">{visitData.insurance.provider || '—'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Member ID</label>
-                <p className="text-[var(--text-strong)]">{insurance.memberId || '--'}</p>
+                <p className="text-[var(--text-strong)]">{visitData.insurance.memberId || '—'}</p>
               </div>
             </div>
           </Card>
+
+          {/* Symptoms */}
+          {(visitData.additional.symptoms || visitData.additional.durationValue) && (
+            <Card>
+              <h2 className="text-lg font-semibold text-[var(--text-strong)] mb-4">
+                Symptoms
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Current Symptoms</label>
+                  <p className="text-[var(--text-strong)]">{visitData.additional.symptoms || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Duration</label>
+                  <p className="text-[var(--text-strong)]">
+                    {visitData.additional.durationValue && visitData.additional.durationUnit 
+                      ? `${visitData.additional.durationValue} ${visitData.additional.durationUnit}`
+                      : '—'
+                    }
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Vitals */}
           <Card>
@@ -142,81 +178,57 @@ export default function ReviewPage() {
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Blood Pressure</label>
                 <p className="text-[var(--text-strong)]">
-                  {formatVitalValue(vitals.bpSys.capturedValue, '')}/
-                  {formatVitalValue(vitals.bpDia.capturedValue, 'mmHg')}
+                  {formatVitalValue(visitData.vitals.bpSys?.capturedValue, '')}/
+                  {formatVitalValue(visitData.vitals.bpDia?.capturedValue, 'mmHg')}
                 </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Heart Rate</label>
                 <p className="text-[var(--text-strong)]">
-                  {formatVitalValue(vitals.hr.capturedValue, 'bpm')}
+                  {formatVitalValue(visitData.vitals.hr?.capturedValue, 'bpm')}
                 </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">SpO₂</label>
                 <p className="text-[var(--text-strong)]">
-                  {formatVitalValue(vitals.spo2.capturedValue, '%')}
+                  {formatVitalValue(visitData.vitals.spo2?.capturedValue, '%')}
                 </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Temperature</label>
                 <p className="text-[var(--text-strong)]">
-                  {formatVitalValue(vitals.tempC.capturedValue, '°C')}
+                  {formatVitalValue(visitData.vitals.tempC?.capturedValue, '°C')}
                 </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Weight</label>
                 <p className="text-[var(--text-strong)]">
-                  {formatVitalValue(vitals.weightKg.capturedValue, 'kg')}
+                  {formatVitalValue(visitData.vitals.weightKg?.capturedValue, 'kg')}
                 </p>
               </div>
             </div>
           </Card>
 
-          {/* Symptoms */}
-          {(additional.symptoms || additional.durationValue) && (
-            <Card>
-              <h2 className="text-lg font-semibold text-[var(--text-strong)] mb-4">
-                Symptoms
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)]">Current Symptoms</label>
-                  <p className="text-[var(--text-strong)]">{additional.symptoms || '—'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)]">Duration</label>
-                  <p className="text-[var(--text-strong)]">
-                    {additional.durationValue && additional.durationUnit 
-                      ? `${additional.durationValue} ${additional.durationUnit}`
-                      : '—'
-                    }
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-
           {/* Additional Information */}
-          {(additional.meds?.length || additional.allergies?.length) && (
+          {(visitData.additional.meds?.length || visitData.additional.allergies?.length) && (
             <Card>
               <h2 className="text-lg font-semibold text-[var(--text-strong)] mb-4">
                 Additional Information
               </h2>
               <div className="space-y-4">
-                {additional.meds?.length && (
+                {visitData.additional.meds?.length && (
                   <div>
                     <label className="text-sm font-medium text-[var(--text-muted)]">Medications</label>
                     <p className="text-[var(--text-strong)]">
-                      {Array.isArray(additional.meds) ? additional.meds.join(', ') : additional.meds}
+                      {Array.isArray(visitData.additional.meds) ? visitData.additional.meds.join(', ') : visitData.additional.meds}
                     </p>
                   </div>
                 )}
-                {additional.allergies?.length && (
+                {visitData.additional.allergies?.length && (
                   <div>
                     <label className="text-sm font-medium text-[var(--text-muted)]">Allergies</label>
                     <p className="text-[var(--text-strong)]">
-                      {Array.isArray(additional.allergies) ? additional.allergies.join(', ') : additional.allergies}
+                      {Array.isArray(visitData.additional.allergies) ? visitData.additional.allergies.join(', ') : visitData.additional.allergies}
                     </p>
                   </div>
                 )}
