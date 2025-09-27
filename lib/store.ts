@@ -37,14 +37,6 @@ export interface AppState {
   // Current visit
   currentVisitId: string | null;
   
-  // Visit data for review/success flow
-  visitData: {
-    patient: Partial<PatientData>;
-    insurance: Partial<InsuranceData>;
-    additional: Partial<AdditionalInfoData>;
-    vitals: Partial<VitalsData>;
-  } | null;
-  
   // Actions
   updatePatient: (data: Partial<PatientData>) => void;
   updateInsurance: (data: Partial<InsuranceData>) => void;
@@ -60,7 +52,6 @@ export interface AppState {
   setSimulating: (simulating: boolean) => void;
   
   setCurrentVisitId: (id: string | null) => void;
-  saveVisitData: () => void;
   resetVisit: () => void;
   
   // Computed getters
@@ -79,28 +70,17 @@ const initialVitalState: VitalState = {
 
 export const useAppStore = create<AppState>((set, get) => ({
   // Initial state
-  patient: {
-    firstName: 'John',
-    lastName: 'Doe',
-    dob: '1990-01-01',
-  },
-  insurance: {
-    provider: 'Test Insurance',
-    memberId: '123456789',
-  },
-  additional: {
-    symptoms: 'Chest pain and shortness of breath',
-    durationValue: 2,
-    durationUnit: 'hours',
-  },
+  patient: {},
+  insurance: {},
+  additional: {},
   
   vitals: {
-    bpSys: { ...initialVitalState, capturedValue: 120 },
-    bpDia: { ...initialVitalState, capturedValue: 80 },
-    hr: { ...initialVitalState, capturedValue: 72 },
-    spo2: { ...initialVitalState, capturedValue: 98 },
-    tempC: { ...initialVitalState, capturedValue: 36.5 },
-    weightKg: { ...initialVitalState, capturedValue: 70 },
+    bpSys: { ...initialVitalState },
+    bpDia: { ...initialVitalState },
+    hr: { ...initialVitalState },
+    spo2: { ...initialVitalState },
+    tempC: { ...initialVitalState },
+    weightKg: { ...initialVitalState },
   },
   
   isCapturing: false,
@@ -108,7 +88,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   isSerialConnected: false,
   isSimulating: false,
   currentVisitId: null,
-  visitData: null,
   
   // Actions
   updatePatient: (data) => set((state) => ({ patient: { ...state.patient, ...data } })),
@@ -185,15 +164,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   setCurrentVisitId: (id) => set({ currentVisitId: id }),
   
-  saveVisitData: () => set((state) => ({
-    visitData: {
-      patient: state.patient,
-      insurance: state.insurance,
-      additional: state.additional,
-      vitals: state.getVitalsData(),
-    },
-  })),
-  
   resetVisit: () => set({
     patient: {},
     insurance: {},
@@ -211,7 +181,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     isSerialConnected: false,
     isSimulating: false,
     currentVisitId: null,
-    visitData: null,
   }),
   
   // Computed getters
