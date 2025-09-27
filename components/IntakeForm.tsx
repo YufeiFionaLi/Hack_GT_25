@@ -66,25 +66,6 @@ export function IntakeForm() {
     });
   };
 
-  // Auto-save form data as user types
-  const handlePatientChange = (data: Partial<PatientFormData>) => {
-    updatePatient(data);
-  };
-
-  const handleInsuranceChange = (data: Partial<InsuranceFormData>) => {
-    updateInsurance(data);
-  };
-
-  const handleAdditionalChange = (data: Partial<AdditionalFormData>) => {
-    updateAdditional({
-      meds: data.meds?.length ? data.meds : undefined,
-      allergies: data.allergies?.length ? data.allergies : undefined,
-      symptoms: data.symptoms || undefined,
-      durationValue: data.durationValue,
-      durationUnit: data.durationUnit,
-    });
-  };
-
   return (
     <div className="space-y-6">
       {/* Patient Information */}
@@ -104,7 +85,6 @@ export function IntakeForm() {
                 id="firstName"
                 className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                 placeholder="Enter first name"
-                onChange={(e) => handlePatientChange({ firstName: e.target.value })}
               />
               {patientForm.formState.errors.firstName && (
                 <p className="text-sm text-[var(--danger)] mt-1">
@@ -122,7 +102,6 @@ export function IntakeForm() {
                 id="lastName"
                 className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                 placeholder="Enter last name"
-                onChange={(e) => handlePatientChange({ lastName: e.target.value })}
               />
               {patientForm.formState.errors.lastName && (
                 <p className="text-sm text-[var(--danger)] mt-1">
@@ -140,7 +119,6 @@ export function IntakeForm() {
               type="date"
               id="dob"
               className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-              onChange={(e) => handlePatientChange({ dob: e.target.value })}
             />
             {patientForm.formState.errors.dob && (
               <p className="text-sm text-[var(--danger)] mt-1">
@@ -168,7 +146,6 @@ export function IntakeForm() {
                 id="provider"
                 className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                 placeholder="Enter insurance provider"
-                onChange={(e) => handleInsuranceChange({ provider: e.target.value })}
               />
             </div>
             <div>
@@ -181,7 +158,6 @@ export function IntakeForm() {
                 id="memberId"
                 className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                 placeholder="Enter member ID"
-                onChange={(e) => handleInsuranceChange({ memberId: e.target.value })}
               />
             </div>
           </div>
@@ -234,7 +210,6 @@ export function IntakeForm() {
               rows={3}
               className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
               placeholder="Describe current symptoms"
-              onChange={(e) => handleAdditionalChange({ symptoms: e.target.value })}
             />
           </div>
           
@@ -244,15 +219,14 @@ export function IntakeForm() {
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-            <input
-              {...additionalForm.register('durationValue', { valueAsNumber: true })}
-              type="number"
-              min="1"
-              max="3650"
-              className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-              placeholder="Enter duration"
-              onChange={(e) => handleAdditionalChange({ durationValue: Number(e.target.value) })}
-            />
+                <input
+                  {...additionalForm.register('durationValue', { valueAsNumber: true })}
+                  type="number"
+                  min="1"
+                  max="3650"
+                  className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+                  placeholder="Enter duration"
+                />
                 {additionalForm.formState.errors.durationValue && (
                   <p className="text-sm text-[var(--danger)] mt-1">
                     {additionalForm.formState.errors.durationValue.message}
@@ -260,11 +234,10 @@ export function IntakeForm() {
                 )}
               </div>
               <div>
-            <select
-              {...additionalForm.register('durationUnit')}
-              className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-              onChange={(e) => handleAdditionalChange({ durationUnit: e.target.value as "hours" | "days" | "weeks" | "months" })}
-            >
+                <select
+                  {...additionalForm.register('durationUnit')}
+                  className="w-full px-3 py-2 border border-[var(--surface-2)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+                >
                   <option value="">Select unit</option>
                   <option value="hours">Hours</option>
                   <option value="days">Days</option>

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { CheckCircle, Copy, RotateCcw } from 'lucide-react';
+import { CheckCircle, Copy, QrCode, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function SuccessContent() {
@@ -19,11 +19,8 @@ function SuccessContent() {
     const id = searchParams.get('shortId');
     if (id) {
       setShortId(id);
-    } else {
-      // Redirect to start if no shortId
-      router.push('/start');
     }
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   const handleCopyId = async () => {
     try {
@@ -40,8 +37,8 @@ function SuccessContent() {
     router.push('/start');
   };
 
-      return (
-        <div className="min-h-screen bg-[var(--surface-1)] flex items-center justify-center p-4 pb-32">
+  return (
+    <div className="min-h-screen bg-[var(--surface-1)] flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
         {/* Success Icon */}
         <div className="text-center mb-8">
@@ -49,17 +46,17 @@ function SuccessContent() {
             <CheckCircle className="h-10 w-10 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-[var(--text-strong)] mb-2">
-            Success — Checked In
+            Saved Successfully!
           </h1>
           <p className="text-lg text-[var(--text-muted)]">
-            Your visit has been successfully recorded.
+            Your vitals have been captured and saved locally.
           </p>
         </div>
 
-        {/* Visit ID Card */}
+        {/* Check-In ID Card */}
         <Card className="mb-8">
           <h2 className="text-lg font-semibold text-[var(--text-strong)] mb-4 text-center">
-            Your Visit ID
+            Your Check-In ID
           </h2>
           
           <div className="text-center space-y-4">
@@ -81,7 +78,51 @@ function SuccessContent() {
           </div>
         </Card>
 
-        {/* Instructions */}
+        {/* QR Code Card */}
+        <Card className="mb-8">
+          <h2 className="text-lg font-semibold text-[var(--text-strong)] mb-4 text-center">
+            QR Code
+          </h2>
+          
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-48 h-48 bg-white border-2 border-[var(--surface-2)] rounded-lg mb-4">
+              <QrCode className="h-32 w-32 text-[var(--text-muted)]" />
+            </div>
+            <p className="text-sm text-[var(--text-muted)]">
+              QR code contains your visit data
+            </p>
+          </div>
+        </Card>
+
+        {/* Data Summary */}
+        <Card className="mb-8">
+          <h2 className="text-lg font-semibold text-[var(--text-strong)] mb-4">
+            Data Summary
+          </h2>
+          
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[var(--text-muted)]">Visit ID:</span>
+              <span className="font-mono text-[var(--text-strong)]">{shortId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-muted)]">Captured:</span>
+              <span className="text-[var(--text-strong)]">
+                {new Date().toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-muted)]">Storage:</span>
+              <span className="text-[var(--text-strong)]">Local Device Only</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-muted)]">Format:</span>
+              <span className="text-[var(--text-strong)]">JSON Downloaded</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Next Steps */}
         <Card className="mb-8">
           <h2 className="text-lg font-semibold text-[var(--text-strong)] mb-4">
             Next Steps
@@ -90,11 +131,11 @@ function SuccessContent() {
           <div className="space-y-3 text-sm text-[var(--text-muted)]">
             <div className="flex items-start">
               <div className="w-2 h-2 bg-[var(--brand-primary)] rounded-full mt-2 mr-3 flex-shrink-0" />
-              <p>Show this Visit ID to the nurse or healthcare provider</p>
+              <p>Present your Check-In ID to the healthcare provider</p>
             </div>
             <div className="flex items-start">
               <div className="w-2 h-2 bg-[var(--brand-primary)] rounded-full mt-2 mr-3 flex-shrink-0" />
-              <p>Your vitals and information have been saved locally</p>
+              <p>Your vitals data is stored locally and can be accessed via the downloaded JSON file</p>
             </div>
             <div className="flex items-start">
               <div className="w-2 h-2 bg-[var(--brand-primary)] rounded-full mt-2 mr-3 flex-shrink-0" />
@@ -103,8 +144,8 @@ function SuccessContent() {
           </div>
         </Card>
 
-        {/* Action Button */}
-        <div className="text-center">
+        {/* Action Buttons */}
+        <div className="text-center space-y-4">
           <Button
             variant="primary"
             size="lg"
@@ -114,6 +155,10 @@ function SuccessContent() {
             <RotateCcw className="h-4 w-4 mr-2" />
             Start New Check-In
           </Button>
+          
+          <p className="text-sm text-[var(--text-muted)]">
+            This will clear all current data and start a fresh check-in process.
+          </p>
         </div>
       </div>
     </div>
