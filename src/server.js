@@ -25,7 +25,7 @@ let latest = null;
 // Fire-and-forget insert (don’t block serial parser loop)
 async function saveReadingToDB(reading) {
   try {
-    const { error } = await supabase.from('Sensor readings').insert({
+    const { error } = await supabase.from('readings').insert({
       analog: reading.analog ?? null,
       digital: reading.digital ?? null,
       raw: reading.raw ?? null
