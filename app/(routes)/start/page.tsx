@@ -21,7 +21,7 @@ export default function StartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--surface-1)] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--surface-1)] flex items-center justify-center p-4 pb-32">
       <div className="max-w-2xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
