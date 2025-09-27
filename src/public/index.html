@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Arduino Live – MQ-3</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; width: 360px; }
+    .value { font-size: 2rem; }
+    h1 { margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Arduino → Node → Web (MQ-3 Alcohol Sensor)</h1>
+  <div class="card">
+    <div>Analog reading: <span id="analog" class="value">—</span></div>
+    <div>Digital output: <span id="digital" class="value">—</span></div>
+    <div>Timestamp (ms): <span id="t">—</span></div>
+    <div>Status: <span id="status">waiting…</span></div>
+  </div>
+
+  <script>
+    const analogEl  = document.getElementById('analog');
+    const digitalEl = document.getElementById('digital');
+    const tEl       = document.getElementById('t');
+    const statusEl  = document.getElementById('status');
+
+    async function tick() {
+      try {
+        const res = await fetch('/api/sensor', { cache: 'no-store' });
+        if (res.status === 204) {
+          statusEl.textContent = 'no data yet…';
+          return;
+        }
+        const data = await res.json();
+        // server.js sets latest = { analog: Number, digital: Number, t: Date.now() }
+        analogEl.textContent  = data.analog  ?? '—';
+        digitalEl.textContent = data.digital ?? '—';
+        tEl.textContent       = data.t       ?? '—';
+        statusEl.textContent  = 'live';
+      } catch (e) {
+        statusEl.textContent = 'error fetching';
+      }
+    }
+
+    // poll 5 times per second
+    setInterval(tick, 200);
+    tick();
+  </script>
+</body>
+</html>
