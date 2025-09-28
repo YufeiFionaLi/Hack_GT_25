@@ -1,4 +1,4 @@
-# Medical Sensor Data Collection System
+# HealthDock
 
 A comprehensive medical sensor data collection system built with React frontend and Node.js backend, designed for collecting patient information and sensor readings from Arduino MQ-3 alcohol sensors.
 
