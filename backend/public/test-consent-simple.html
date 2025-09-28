@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Consent Test - Simple</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>Consent Test - Simple</h1>
+    
+    <div class="debug" id="debug-info">
+        <h3>Debug Information:</h3>
+        <div id="debug-content">Loading...</div>
+    </div>
+    
+    <div>
+        <button onclick="clearConsent()">Clear Consent</button>
+        <button onclick="setConsent()">Set Consent</button>
+        <button onclick="testRedirect()">Test Redirect to Consent</button>
+        <button onclick="refreshDebug()">Refresh Debug Info</button>
+    </div>
+    
+    <div class="debug">
+        <h3>Manual Test:</h3>
+        <p>1. Click "Clear Consent"</p>
+        <p>2. Click "Test Redirect to Consent"</p>
+        <p>3. You should be redirected to the consent page</p>
+    </div>
+
+    <script>
+        function refreshDebug() {
+            const debugContent = document.getElementById('debug-content');
+            const currentPath = location.pathname;
+            const consentValue = sessionStorage.getItem('medicalConsent');
+            const onConsentPage = /\/consent\.html$/.test(currentPath);
+            
+            debugContent.innerHTML = `
+                <p><strong>Current Path:</strong> ${currentPath}</p>
+                <p><strong>Consent Value:</strong> ${consentValue}</p>
+                <p><strong>On Consent Page:</strong> ${onConsentPage}</p>
+                <p><strong>Should Redirect:</strong> ${!onConsentPage && consentValue !== 'true'}</p>
+            `;
+        }
+        
+        function clearConsent() {
+            console.log('Clearing consent...');
+            sessionStorage.removeItem('medicalConsent');
+            console.log('Consent cleared');
+            refreshDebug();
+        }
+        
+        function setConsent() {
+            console.log('Setting consent...');
+            sessionStorage.setItem('medicalConsent', 'true');
+            console.log('Consent set');
+            refreshDebug();
+        }
+        
+        function testRedirect() {
+            console.log('Testing redirect...');
+            const onConsentPage = /\/consent\.html$/.test(location.pathname);
+            const consentGranted = sessionStorage.getItem('medicalConsent') === 'true';
+            
+            console.log('On consent page:', onConsentPage);
+            console.log('Consent granted:', consentGranted);
+            
+            if (!onConsentPage && !consentGranted) {
+                console.log('Redirecting to consent page...');
+                location.replace('/consent.html');
+            } else {
+                console.log('No redirect needed');
+                alert('No redirect needed - either already on consent page or consent is granted');
+            }
+        }
+        
+        // Initial load
+        refreshDebug();
+    </script>
+</body>
+</html>
+

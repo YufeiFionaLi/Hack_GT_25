@@ -5,7 +5,8 @@
 ALTER TABLE readings 
 ADD COLUMN IF NOT EXISTS name TEXT,
 ADD COLUMN IF NOT EXISTS date_of_birth DATE,
-ADD COLUMN IF NOT EXISTS insurance TEXT;
+ADD COLUMN IF NOT EXISTS insurance TEXT,
+ADD COLUMN IF NOT EXISTS symptoms TEXT;
 
 -- Add an index for better query performance on user data
 CREATE INDEX IF NOT EXISTS idx_readings_name ON readings(name);

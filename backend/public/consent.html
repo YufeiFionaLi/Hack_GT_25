@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Medical Data Collection Consent</title>
+  <style>
+    body { 
+      font-family: system-ui, sans-serif; 
+      margin: 0; 
+      padding: 1rem; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .consent-container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      max-width: 600px;
+      width: 100%;
+      margin: 1rem;
+      max-height: 90vh;
+      overflow: hidden;
+    }
+    .consent-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .consent-header h1 {
+      color: #2c3e50;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+    .consent-content {
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+      color: #2c3e50;
+      text-align: center;
+    }
+    .terms-box {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      text-align: left;
+    }
+    .terms-box h3 {
+      color: #2c3e50;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .terms-box p {
+      color: #6c757d;
+      font-size: 0.95rem;
+      margin: 0;
+    }
+    .consent-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.5rem 0;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border: 2px solid #e9ecef;
+    }
+    .consent-checkbox input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    .consent-checkbox label {
+      font-weight: 600;
+      color: #2c3e50;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .consent-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+    .consent-button {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 120px;
+    }
+    .consent-button.primary {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+    }
+    .consent-button.primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+    }
+    .consent-button.secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .consent-button.secondary:hover:not(:disabled) {
+      background: #5a6268;
+      transform: translateY(-2px);
+    }
+    .consent-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    @media (max-width: 600px) {
+      .consent-container {
+        padding: 1rem;
+        margin: 0.5rem;
+      }
+      .consent-header h1 {
+        font-size: 1.5rem;
+      }
+      .consent-buttons {
+        flex-direction: column;
+      }
+      .consent-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="consent-container">
+    <div class="consent-header">
+      <h1>🏥 Medical Data Collection Consent</h1>
+      <p>Please review and consent to proceed with the medical sensor test</p>
+    </div>
+
+    <div class="consent-content">
+      <div class="terms-box">
+        <h3>📋 Terms and Policies</h3>
+        <p><strong>Data Collection:</strong> We collect sensor readings and basic patient information for medical assessment purposes.</p>
+        <p><strong>Privacy:</strong> Your data is encrypted and stored securely. Access is restricted to authorized medical personnel only.</p>
+        <p><strong>Usage:</strong> Data will be used for medical monitoring, healthcare provider analysis, and treatment planning.</p>
+        <p><strong>Rights:</strong> You can access your data, request corrections, or withdraw consent at any time.</p>
+      </div>
+
+      <div class="consent-checkbox">
+        <input type="checkbox" id="consent-checkbox" required>
+        <label for="consent-checkbox">
+          I have read and understood the terms above, and I consent to participate in this medical data collection process.
+        </label>
+      </div>
+    </div>
+
+    <div class="consent-buttons">
+      <button class="consent-button secondary" onclick="declineConsent()">Decline</button>
+      <button class="consent-button primary" id="consent-submit" onclick="proceedToTest()" disabled>I Consent - Proceed</button>
+    </div>
+  </div>
+
+  <script>
+    const consentCheckbox = document.getElementById('consent-checkbox');
+    const consentSubmit = document.getElementById('consent-submit');
+
+    // Enable/disable submit button based on checkbox
+    consentCheckbox.addEventListener('change', function() {
+      consentSubmit.disabled = !this.checked;
+    });
+
+    function proceedToTest() {
+      if (consentCheckbox.checked) {
+        // Store consent in sessionStorage
+        sessionStorage.setItem('medicalConsent', 'true');
+        sessionStorage.setItem('consentTimestamp', new Date().toISOString());
+        
+        // Redirect to main test page
+        window.location.href = '/index.html';
+      }
+    }
+
+    function declineConsent() {
+      if (confirm('Are you sure you want to decline? You will not be able to proceed with the medical test.')) {
+        alert('Thank you for your time. If you change your mind, you can return to this page to provide consent.');
+      }
+    }
+
+    // Check if consent has already been given
+    window.addEventListener('load', function() {
+      const hasConsent = sessionStorage.getItem('medicalConsent');
+      if (hasConsent === 'true') {
+        // If consent already given, redirect to main page
+        window.location.href = '/index.html';
+      }
+    });
+  </script>
+</body>
+</html>

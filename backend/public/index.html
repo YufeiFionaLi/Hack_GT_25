@@ -1,0 +1,447 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <script>
+    // Consent gate
+    (function () {
+      const KEY = 'medicalConsent';
+      if (sessionStorage.getItem(KEY) !== 'true') {
+        location.replace('/consent.html');
+      } else {
+        window.addEventListener('load', () => {
+          sessionStorage.removeItem(KEY);
+        });
+      }
+    })();
+  </script>
+
+  <title>404 Health Not Found</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>404 Health Not Found </h1>
+      <p>Real-time patient data collection and monitoring</p>
+    </div>
+
+    <div class="dashboard">
+      <div class="card sensor-card">
+        <h2>📊 Live Sensor Data</h2>
+        <div class="sensor-readings" id="sensor-grid">
+          <div class="reading-item">
+            <div class="reading-label">Timestamp</div>
+            <div class="value timestamp-value" id="t">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="reading-label"> Heart rate</div>
+            <div class="value analog-value" id="heart_rate">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="reading-label">Temperature Celcius</div>
+            <div class="value analog-value" id="TempC">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="reading-label">Humidity</div>
+            <div class="value digital-value" id="TempF">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="reading-label">Alcohol level</div>
+            <div class="value analog-value" id="alcohol_detected">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="reading-label">Alcohol pass threshold?</div>
+            <div class="value digital-value" id="alcohol_level">—</div>
+          </div>
+        </div>
+        
+        <!-- Heart Rate & Temperature Controls -->
+        <div class="reading-controls">
+          <h3> Start touch sensors</h3>
+          <button id="start-heartrate-btn" class="btn btn-primary">
+            <span>💓</span>
+            Start Reading Heart Rate & Temperature
+          </button>
+          <button id="stop-heartrate-btn" class="btn btn-secondary" style="display:none;">
+            <span>⏹️</span>
+            Stop Heart Rate & Temperature
+          </button>
+          <div id="heartrate-status" class="reading-status">
+            <span class="status-indicator">●</span>
+            <span class="status-text">Ready to start heart rate & temperature reading</span>
+          </div>
+        </div>
+
+        <!-- Breath & Alcohol Controls -->
+        <div class="reading-controls">
+          <h3>🌬️ Start breath sensors</h3>
+          <button id="start-breath-btn" class="btn btn-primary">
+            <span>🌬️</span>
+            Begin Recording Breath & Alcohol
+          </button>
+          <button id="stop-breath-btn" class="btn btn-secondary" style="display:none;">
+            <span>⏹️</span>
+            Stop Breath & Alcohol Recording
+          </button>
+          <div id="breath-status" class="reading-status">
+            <span class="status-indicator">●</span>
+            <span class="status-text">Ready to start breath & alcohol recording</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card form-section">
+        <h2>👤 Patient Information</h2>
+        <form id="user-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="firstName" class="form-label">First Name *</label>
+              <input type="text" id="firstName" name="firstName" class="form-input" required placeholder="Enter your first name">
+            </div>
+            <div class="form-group">
+              <label for="lastName" class="form-label">Last Name *</label>
+              <input type="text" id="lastName" name="lastName" class="form-input" required placeholder="Enter your last name">
+            </div>
+            <div class="form-group">
+              <label for="dateOfBirth" class="form-label">Date of Birth *</label>
+              <input type="date" id="dateOfBirth" name="dateOfBirth" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label for="insurance" class="form-label">Insurance Provider *</label>
+              <input type="text" id="insurance" name="insurance" class="form-input" required placeholder="Enter your insurance provider">
+            </div>
+            <div class="form-group">
+              <label for="insuranceId" class="form-label">Insurance ID *</label>
+              <input type="text" id="insuranceId" name="insuranceId" class="form-input" required placeholder="Enter your insurance ID">
+            </div>
+            <div class="form-group full-width">
+              <label for="symptoms" class="form-label">Current Symptoms *</label>
+              <textarea id="symptoms" name="symptoms" class="form-input" required placeholder="Please describe your current symptoms..."></textarea>
+            </div>
+          </div>
+
+
+          <div class="controls">
+            <button type="submit" class="btn btn-primary">
+              <span>📸</span>
+              Submit (Capture & Save)
+            </button>
+            <button type="button" id="save-latest" class="btn btn-secondary">
+              <span>💾</span>
+              Save Latest Reading
+            </button>
+           <button type="button" id="db-latest" class="btn btn-tertiary" style ="display:none;">
+              <span>📋</span>
+              Show Latest from DB
+            </button>
+          </div>
+        </form>
+
+      <div id="user-response" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- Thank You Screen -->
+    <div id="thank-you-screen" class="thank-you-overlay" style="display:none;">
+      <div class="thank-you-modal">
+        <button class="close-btn" id="close-thank-you">&times;</button>
+        <div class="thank-you-content">
+          <h2>✅ Thank You for Submitting!</h2>
+          <p>Your medical data has been successfully recorded.</p>
+          <div class="patient-id-container">
+            <h3>Your Patient ID:</h3>
+            <div class="patient-id" id="patient-id-display">Loading...</div>
+          </div>
+          <p class="instructions">Please keep this ID for your records. You can close this window to return to the consent page.</p>
+        </div>
+      </div>
+    </div>
+
+  <script>
+    console.log('JavaScript is running!');
+    
+    // Reading state management
+    let isHeartRateReading = false;
+    let isBreathReading = false;
+    
+    // Live polling for /api/sensor
+    const heart_rateEl = document.getElementById('heart_rate');
+    const spoEl = document.getElementById('spo');
+    const TempCEl = document.getElementById('TempC');
+    const TempFEl = document.getElementById('TempF');
+    const alcohol_detectedEl = document.getElementById('alcohol_detected');
+    const alcohol_levelEl = document.getElementById('alcohol_level');
+    const tEl = document.getElementById('t');
+    
+    console.log('Elements found:', {
+      heart_rateEl: !!heart_rateEl,
+      spoEl: !!spoEl,
+      TempCEl: !!TempCEl,
+      TempFEl: !!TempFEl,
+      alcohol_detectedEl: !!alcohol_detectedEl,
+      alcohol_levelEl: !!alcohol_levelEl,
+      tEl: !!tEl
+    });
+
+    async function tick() {
+      // Only fetch data if either reading mode is active
+      if (!isHeartRateReading && !isBreathReading) {
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/sensor', { cache: 'no-store' });
+        console.log('API Response status:', res.status);
+        
+        if (res.status === 204) {
+          console.log('No Arduino connected - waiting for real sensor data');
+          // Show "No Data" message for active sensors only
+          if (isHeartRateReading) {
+            updateReadingStatus('heartrate', 'error', 'No Arduino connected');
+            if (heart_rateEl) heart_rateEl.textContent = 'No Data';
+            if (TempCEl) TempCEl.textContent = 'No Data';
+          }
+          if (isBreathReading) {
+            updateReadingStatus('breath', 'error', 'No Arduino connected');
+            if (spoEl) spoEl.textContent = 'No Data';
+            if (TempFEl) TempFEl.textContent = 'No Data';
+            if (alcohol_detectedEl) alcohol_detectedEl.textContent = 'No Data';
+            if (alcohol_levelEl) alcohol_levelEl.textContent = 'No Data';
+          }
+          if (tEl) tEl.textContent = 'No Data';
+          return;
+        }
+        
+        const data = await res.json();
+        console.log('Received data:', data);
+        
+        // Update heart rate & temperature data only if heart rate reading is active
+        if (isHeartRateReading) {
+          if (heart_rateEl) heart_rateEl.textContent = data.heart_rate ?? '—';
+          if (TempCEl) TempCEl.textContent = data.TempC ?? '—';
+          updateReadingStatus('heartrate', 'reading', 'Reading heart rate & temperature...');
+        }
+        
+        // Update breath & alcohol data only if breath reading is active
+        if (isBreathReading) {
+          if (spoEl) spoEl.textContent = data.spo ?? '—';
+          if (TempFEl) TempFEl.textContent = data.TempF ?? '—';
+          if (alcohol_detectedEl) alcohol_detectedEl.textContent = data.alcohol_detected ?? '—';
+          if (alcohol_levelEl) alcohol_levelEl.textContent = data.alcohol_level ?? '—';
+          updateReadingStatus('breath', 'reading', 'Recording breath & alcohol data...');
+        }
+        
+        // Always update timestamp if any reading is active
+        if (tEl) tEl.textContent = data.t ? new Date(data.t).toLocaleTimeString() : '—';
+        
+        console.log('Updated display elements');
+      } catch (e) { 
+        // Handle errors silently or log them
+        console.error('Sensor data fetch error:', e);
+        if (isHeartRateReading) updateReadingStatus('heartrate', 'error', 'Error reading heart rate');
+        if (isBreathReading) updateReadingStatus('breath', 'error', 'Error reading breath data');
+      }
+    }
+    
+    // Reading control functions
+    function updateReadingStatus(type, status, message) {
+      const statusIndicator = document.querySelector(`#${type}-status .status-indicator`);
+      const statusText = document.querySelector(`#${type}-status .status-text`);
+      
+      if (statusIndicator && statusText) {
+        statusIndicator.className = `status-indicator ${status}`;
+        statusText.textContent = message;
+      }
+    }
+    
+    function startHeartRateReading() {
+      isHeartRateReading = true;
+      document.getElementById('start-heartrate-btn').style.display = 'none';
+      document.getElementById('stop-heartrate-btn').style.display = 'inline-flex';
+      updateReadingStatus('heartrate', 'reading', 'Reading heart rate & temperature...');
+      console.log('Started reading heart rate & temperature');
+    }
+    
+    function stopHeartRateReading() {
+      isHeartRateReading = false;
+      document.getElementById('start-heartrate-btn').style.display = 'inline-flex';
+      document.getElementById('stop-heartrate-btn').style.display = 'none';
+      updateReadingStatus('heartrate', 'stopped', 'Heart rate & temperature reading stopped');
+      
+      // Clear only heart rate & temperature displays
+      if (heart_rateEl) heart_rateEl.textContent = '—';
+      if (TempCEl) TempCEl.textContent = '—';
+      
+      console.log('Stopped reading heart rate & temperature');
+    }
+    
+    function startBreathReading() {
+      isBreathReading = true;
+      document.getElementById('start-breath-btn').style.display = 'none';
+      document.getElementById('stop-breath-btn').style.display = 'inline-flex';
+      updateReadingStatus('breath', 'reading', 'Recording breath & alcohol data...');
+      console.log('Started recording breath & alcohol data');
+    }
+    
+    function stopBreathReading() {
+      isBreathReading = false;
+      document.getElementById('start-breath-btn').style.display = 'inline-flex';
+      document.getElementById('stop-breath-btn').style.display = 'none';
+      updateReadingStatus('breath', 'stopped', 'Breath & alcohol recording stopped');
+      
+      // Clear only breath & alcohol displays
+      if (spoEl) spoEl.textContent = '—';
+      if (TempFEl) TempFEl.textContent = '—';
+      if (alcohol_detectedEl) alcohol_detectedEl.textContent = '—';
+      if (alcohol_levelEl) alcohol_levelEl.textContent = '—';
+      
+      console.log('Stopped recording breath & alcohol data');
+    }
+    
+    // Test server connection
+    console.log('Testing server connection...');
+    fetch('/api/sensor')
+      .then(res => {
+        console.log('Server response status:', res.status);
+        return res.json();
+      })
+      .then(data => {
+        console.log('Server data:', data);
+      })
+      .catch(err => {
+        console.error('Server connection error:', err);
+      });
+    
+    // Set up reading controls
+    document.getElementById('start-heartrate-btn').addEventListener('click', startHeartRateReading);
+    document.getElementById('stop-heartrate-btn').addEventListener('click', stopHeartRateReading);
+    document.getElementById('start-breath-btn').addEventListener('click', startBreathReading);
+    document.getElementById('stop-breath-btn').addEventListener('click', stopBreathReading);
+    
+    // Start polling interval (but only fetch data when reading is active)
+    setInterval(tick, 200);
+
+    // Form + buttons
+    const form = document.getElementById('user-form');
+    const saveLatestBtn = document.getElementById('save-latest');
+    const dbLatestBtn = document.getElementById('db-latest');
+    const userResp = document.getElementById('user-response');
+
+    function showUserResponse(kind, msg) {
+      userResp.style.display = 'block';
+      userResp.className = `user-response ${kind}`;
+      userResp.textContent = msg;
+    }
+
+    async function postJSON(path, body) {
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || r.statusText);
+      return j;
+    }
+
+    // Generate random patient ID
+    function generatePatientId() {
+      const prefix = 'PAT';
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+      return `${prefix}-${timestamp}-${random}`;
+    }
+
+    // Show thank you screen
+    function showThankYouScreen() {
+      const thankYouScreen = document.getElementById('thank-you-screen');
+      const patientIdDisplay = document.getElementById('patient-id-display');
+      
+      // Generate and display patient ID
+      const patientId = generatePatientId();
+      patientIdDisplay.textContent = patientId;
+      
+      // Show the screen
+      thankYouScreen.style.display = 'flex';
+    }
+
+    // Close thank you screen and return to consent
+    function closeThankYouScreen() {
+      const thankYouScreen = document.getElementById('thank-you-screen');
+      thankYouScreen.style.display = 'none';
+      
+      // Clear session storage to force consent page
+      sessionStorage.removeItem('medicalConsent');
+      
+      // Redirect to consent page
+      window.location.href = '/consent.html';
+    }
+
+    // Add event listeners
+    document.getElementById('close-thank-you').addEventListener('click', closeThankYouScreen);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+
+      const fd = new FormData(form);
+      const payload = {
+        firstName: fd.get('firstName')?.toString().trim(),
+        lastName: fd.get('lastName')?.toString().trim(),
+        dateOfBirth: fd.get('dateOfBirth')?.toString(),
+        insurance: fd.get('insurance')?.toString(),
+        insuranceId: fd.get('insuranceId')?.toString().trim(),
+        symptoms: fd.get('symptoms')?.toString().trim()
+      };
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+
+      try {
+        const res = await postJSON('/api/capture-and-save', payload);
+        // Show thank you screen instead of regular success message
+        showThankYouScreen();
+        form.reset();
+      } catch (e) {
+        showUserResponse('error', e.message);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    saveLatestBtn.addEventListener('click', async () => {
+      saveLatestBtn.disabled = true;
+      try {
+        const res = await postJSON('/api/save-latest', {});
+        showUserResponse('success', 'Latest reading saved!');
+      } catch (e) {
+        showUserResponse('error', e.message);
+      } finally {
+        saveLatestBtn.disabled = false;
+      }
+    });
+
+    dbLatestBtn.addEventListener('click', async () => {
+      dbLatestBtn.disabled = true;
+      try {
+        const r = await fetch('/api/sensor/db-latest');
+        if (r.status === 204) {
+          showUserResponse('error', 'No data in database yet.');
+        } else {
+          const data = await r.json();
+          showUserResponse('success', 'Latest data retrieved from database!');
+        }
+      } catch (e) {
+        showUserResponse('error', e.message);
+      } finally {
+        dbLatestBtn.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+</html> 

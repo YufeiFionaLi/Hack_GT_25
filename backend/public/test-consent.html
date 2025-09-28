@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Consent Test</title>
+</head>
+<body>
+    <h1>Consent Test Page</h1>
+    <p>This page tests the consent functionality.</p>
+    <div id="debug-info"></div>
+    
+    <script>
+        // Debug information
+        const debugEl = document.getElementById('debug-info');
+        
+        function addDebugInfo(message) {
+            debugEl.innerHTML += '<p>' + message + '</p>';
+        }
+        
+        addDebugInfo('Page loaded');
+        addDebugInfo('Current path: ' + location.pathname);
+        addDebugInfo('Session storage consent: ' + sessionStorage.getItem('medicalConsent'));
+        
+        // Test the consent check
+        const onConsentPage = /\/consent\.html$/.test(location.pathname);
+        const consentGranted = sessionStorage.getItem('medicalConsent') === 'true';
+        
+        addDebugInfo('On consent page: ' + onConsentPage);
+        addDebugInfo('Consent granted: ' + consentGranted);
+        
+        if (!onConsentPage && !consentGranted) {
+            addDebugInfo('Should redirect to consent page...');
+            // Uncomment the next line to test the redirect
+            // location.replace('/consent.html');
+        } else {
+            addDebugInfo('No redirect needed');
+        }
+    </script>
+</body>
+</html>
+
