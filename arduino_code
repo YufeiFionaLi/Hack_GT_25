@@ -1,0 +1,64 @@
+#include "DHT.h"
+
+// ---- Pin mapping ----
+#define DHTPIN 3       // DHT signal pin
+#define DHTTYPE DHT11  // or DHT22 if that’s your module
+#define ALCOHOL_AO A0  // MQ-3 analog output
+#define ALCOHOL_DO 2   // MQ-3 digital output
+#define HR_PIN A1      // Heart-rate sensor analog output
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// Heart rate detection state
+int threshold = 0;       // Adjust depending on sensor & finger placement
+unsigned long lastBeat = 0;
+int bpm = 0;
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  pinMode(ALCOHOL_DO, INPUT);
+
+  //Serial.println("bpm,temp_c,humidity,alcohol_raw,alcohol_alarm");
+}
+
+void loop() {
+  // --- Read DHT ---
+  float tempC_f = dht.readTemperature();
+  float humidity_f = dht.readHumidity();
+
+  // --- Read MQ-3 ---
+  int alcoholRaw = analogRead(ALCOHOL_AO);     // 0–1023
+  int alcoholAlarm = digitalRead(ALCOHOL_DO);  // 0/1
+  
+  // --- Read Heart Rate Sensor ---
+  int hrSignal = analogRead(HR_PIN);
+  hrSignal = hrSignal/12;
+  bpm = hrSignal;
+
+  // --- Print integers only ---
+  ;if (isnan(tempC_f) || isnan(humidity_f)) {
+    // If sensor fails, print -1 for each reading
+    Serial.print(bpm); Serial.print(",");
+    Serial.print(-1);  Serial.print(",");
+    Serial.print(-1);  Serial.print(",");
+    Serial.print(alcoholRaw); Serial.print(",");
+    Serial.println(alcoholAlarm);
+  } else {
+    // round() converts float to nearest int
+    int tempC = (int)round(tempC_f);
+    int humidity = (int)round(humidity_f);
+
+    Serial.print(bpm); Serial.print(",");
+    Serial.print(1); Serial.print(",");
+    Serial.print(tempC); Serial.print(",");
+    Serial.print(humidity); Serial.print(",");
+    Serial.print(alcoholRaw); Serial.print(",");
+    Serial.println(alcoholAlarm);
+  }
+
+  delay(2000); // DHT11 needs ~2 s between reads
+}
+
+
+
